@@ -1,9 +1,28 @@
 import os
-import re
 from lxml import etree
 import pandas as pd
 
 NMSP = {'ted': 'http://publications.europa.eu/TED_schema/Export'}
+
+
+def contract_item(xml):
+    obj = dict()
+    if xml.xpath("name(*) = 'SINGLE_VALUE'"):
+        currency, value = xml.xpath(".//ted:VALUE/@CURRENCY | .//ted:VALUE/text()",
+                                      namespaces=NMSP)
+        return {'CURRENCY': currency,
+                'VALUE': value}
+    else:
+        assert (xml.xpath("name(*) = 'RANGE_VALUE'"))
+        low_currency, low_value = xml.xpath(".//ted:VALUE[1]/@CURRENCY | .//ted:VALUE[1]/text()",
+                                            namespaces=NMSP)
+        high_currency, high_value = xml.xpath(".//ted:VALUE[2]/@CURRENCY | .//ted:VALUE[2]/text()",
+                                              namespaces=NMSP)
+
+        return {'LOW':  {'CURRENCY': low_currency,
+                         'VALUE': low_value},
+                'HIGH': {'CURRENCY': high_currency,
+                         'VALUE': high_value}}
 
 
 def get_notice(xml):
@@ -46,10 +65,18 @@ def get_notice(xml):
 
     if values:
         assert(len(values) == 1)
-        values = values[0]
-        values = values.xpath(".//ted:VALUE/ancestor::node()[2]/@TYPE | .//ted:VALUE/@CURRENCY | .//ted:VALUE/text()",
-                              namespaces=NMSP)
-    obj['VALUES_LIST'] = values
+
+        global_val = values[0].xpath(".//ted:VALUES[@TYPE = 'GLOBAL']",
+                                  namespaces=NMSP)
+        if global_val:
+            assert(len(global_val) == 1)
+            obj['GLOBAL_VALUE'] = contract_item(global_val[0])
+
+        obj['CONTRACT_VALUE'] = []
+        contract_val = values[0].xpath(".//ted:VALUES[@TYPE = 'CONTRACT']",
+                                    namespaces=NMSP)
+        for c_val in contract_val:
+            obj['CONTRACT_VALUE'].append(contract_item(c_val))
 
     return obj
 
@@ -102,6 +129,28 @@ def get_authority(xml):
     return obj
 
 
+def get_object_value(xml):
+
+    currency = xml.xpath("*/@CURRENCY")
+    vat = xml.xpath(".//ted:VAT_PRCT/text()", namespaces=NMSP)
+
+    if xml.xpath("boolean(.//ted:VALUE_COST)", namespaces=NMSP):
+        return {
+            'CURRENCY': currency,
+            'VALUE_COST': xml.xpath(".//ted:VALUE_COST/text()", namespaces=NMSP),
+            'VAT_PRCT': vat
+        }
+    elif xml.xpath("boolean(.//ted:RANGE_VALUE_COST)", namespaces=NMSP):
+        return {
+            'CURRENCY': currency,
+            'LOW': xml.xpath(".//ted:RANGE_VALUE_COST/LOW_VALUE/text()", namespaces=NMSP),
+            'HIGH': xml.xpath(".//ted:RANGE_VALUE_COST/HIGH_VALUE/text()", namespaces=NMSP),
+            'VAT_PRCT': vat
+        }
+    else:
+        return {}
+
+
 def get_object(xml):
 
     obj = dict()
@@ -112,7 +161,19 @@ def get_object(xml):
 
     obj['CONTRACT_COVERED_GPA'] = xml.xpath(".//ted:CONTRACT_COVERED_GPA/@VALUE", namespaces=NMSP)
 
-    obj['VALUES_LIST'] = xml.xpath(".//ted:COSTS_RANGE_AND_CURRENCY_WITH_VAT_RATE/@CURRENCY", namespaces=NMSP)
+    framework = xml.xpath(".//ted:CONCLUSION_FRAMEWORK_AGREEMENT", namespaces=NMSP)
+    if framework:
+        obj['CONCLUSION_FRAMEWORK_AGREEMENT'] = True
+
+    dps = xml.xpath(".//ted:CONTRACTS_DPS", namespaces=NMSP)
+    if dps:
+        obj['CONTRACTS_DPS'] = True
+
+    values = xml.xpath(".//ted:TOTAL_FINAL_VALUE", namespaces=NMSP)
+
+    if values:
+        assert(len(values) == 1)
+        obj['VALUES_LIST'] = get_object_value(values[0])
 
     return obj
 
@@ -120,20 +181,26 @@ def get_object(xml):
 def get_award(xml):
 
     obj = dict()
-    obj['VALUES_LIST'] = xml.xpath((".//ted:COSTS_RANGE_AND_CURRENCY_WITH_VAT_RATE/@CURRENCY | "
-                                    "ted:INITIAL_ESTIMATED_TOTAL_VALUE_CONTRACT/@CURRENCY"),
-                                   namespaces=NMSP)
     obj['CONTRACTOR_COUNTRY'] = xml.xpath((".//ted:ECONOMIC_OPERATOR_NAME_ADDRESS/"
                                            "ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME/ted:COUNTRY/@VALUE"),
                                           namespaces=NMSP)
-    # if you don't get contrcator country get adress and other informations
+    obj['ADDRESS'] = " ".join(xml.xpath((".//ted:ECONOMIC_OPERATOR_NAME_ADDRESS/"
+                                         "ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME//ted:ADDRESS/text() | "
+                                         ".//ted:ECONOMIC_OPERATOR_NAME_ADDRESS/"
+                                         "ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME//ted:TOWN/text()  | "
+                                         ".//ted:ECONOMIC_OPERATOR_NAME_ADDRESS/"
+                                         "ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME//ted:POSTAL_CODE/text()"),
+                                        namespaces=NMSP))
+    values = xml.xpath(".//ted:COSTS_RANGE_AND_CURRENCY_WITH_VAT_RATE",
+                                   namespaces=NMSP)
+    if values:
+        obj['VALUES_LIST'] = get_award_value(values[0])
     return obj
 
 
 def get_contract(xml):
 
     form = xml.xpath('ted:FORM_SECTION', namespaces=NMSP)[0]
-
 
     if form.xpath('name(child::*/*)') == 'FD_OTH_NOT':
         return {'OTH_NOT' : True}
@@ -172,7 +239,7 @@ def get_contract(xml):
                            namespaces=NMSP):
         awards.append(get_award(award))
 
-    return awards
+    return object_c
 
 def extract(path):
 
@@ -205,26 +272,16 @@ def get_el(path):
         values = values[0]
         global_val = values.xpath(".//ted:VALUES[@TYPE = 'GLOBAL']",
                                   namespaces=NMSP)
-        for g_val in global_val:
-            low = g_val.xpath(".//ted:VALUE[1]/@CURRENCY | .//ted:VALUE[1]/text()",
-                                   namespaces=NMSP)
-            high = g_val.xpath(".//ted:VALUE[2]/@CURRENCY | .//ted:VALUE[2]/text()",
-                                    namespaces=NMSP)
+        if global_val:
+            assert(len(global_val) == 1)
+            obj['GLOBAL'] = contract_item(global_val[0])
 
-            obj['GLOBAL'] = {'CURRENCY': currency1,
-                             'VALUE': value1}
-
+        obj['CONTRACT'] = []
         contract_val = values.xpath(".//ted:VALUES[@TYPE = 'CONTRACT']",
                                     namespaces=NMSP)
         for c_val in contract_val:
-            currency1 = c_val.xpath(".//ted:VALUE[1]/@CURRENCY",
-                                    namespaces=NMSP)
-            currency2 = c_val.xpath(".//ted:VALUE[1]/@CURRENCY",
-                                    namespaces=NMSP)
-            value1 = c_val.xpath(".//ted:VALUE/text()[1]",
-                                   namespaces=NMSP)
-            value2 = c_val.xpath(".//ted:VALUE/text()[2]",
-                                 namespaces=NMSP)
+            obj['CONTRACT'].append(contract_item(c_val))
+
 
 
     return values
@@ -241,9 +298,9 @@ if __name__ == "__main__":
     collection = []
     for f in files:
         # Extract data from xml file
-        data = get_el(os.path.join(DIR, f))
+        #data = get_el(os.path.join(DIR, f))
         #print(data)
-        #c = extract(os.path.join(DIR, f))
+        data = extract(os.path.join(DIR, f))
         #if not c:
         #    break
         #keys.extend()
