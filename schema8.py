@@ -1,6 +1,5 @@
 import os
 import re
-from json import dumps, loads
 import xmltodict
 import pandas as pd
 
@@ -94,9 +93,7 @@ def get_notice(xml):
     return {
         'NO_DOC_OJS': get_value(xml, 'NO_DOC_OJS'),
         'ORIGINAL_NUTS': get_value(xml, 'ORIGINAL_NUTS', '@CODE'),
-        'CURRENT_NUTS': get_value(xml, 'CURRENT_NUTS', '@CODE'),
         'ORIGINAL_CPV': get_value(xml, 'ORIGINAL_CPV', '@CODE'),
-        'CURRENT_CPV': get_value(xml, 'CURRENT_CPV', '@CODE'),
         'ISO_COUNTRY': get_value(xml, 'ISO_COUNTRY', '@VALUE'),
         'VALUES_LIST': get_value(xml, 'VALUES_LIST', '@VALUE'),
         'IA_URL_GENERAL': get_value(xml, 'IA_URL_GENERAL'),
@@ -117,6 +114,14 @@ def get_coded(xml):
     coded_data.update(get_notice(xml['NOTICE_DATA']))
 
     return coded_data
+
+
+def get_ca(xml):
+    name = get_value(xml['ORGANISATION']['OFFICIALNAME'])
+    country = get_value(xml, 'COUNTRY', '@VALUE')
+
+    return {'OFFICIALNAME': name,
+            'COUNTRY': country}
 
 
 def get_contract(xml):
@@ -145,8 +150,25 @@ def get_contract(xml):
 
     r = re.compile('^FD_')
     key = str(*filter(r.match, contract.keys()))
+    contract = contract[key]
 
-    return key, contract[key]
+
+    # CONTRACTING AUTHORITY
+    r = re.compile('^CONTRACTING')
+    ca = str(*filter(r.match, contract.keys()))
+
+    if ca:
+        contracting = contract[ca]
+        if 'CA_CE_CONCESSIONAIRE_PROFILE' in contracting.keys():
+            return get_ca(contracting['CA_CE_CONCESSIONAIRE_PROFILE'])
+
+    # OBJECT
+
+    # CONTRACT AWARD
+
+    return []
+
+
 
 
 def extract(path):
@@ -159,7 +181,7 @@ def extract(path):
     doc_id = main['@DOC_ID']
     coded_data = get_coded(main['CODED_DATA_SECTION'])
 
-    contract = get_contract(main['FORM_SECTION'])
+    contract_type, contract = get_contract(main['FORM_SECTION'])
 
     return coded_data
 
@@ -168,8 +190,11 @@ def get_keys(path):
     with open(path) as fd:
         doc = xmltodict.parse(fd.read())
 
-    key, contract = get_contract(doc['TED_EXPORT']['FORM_SECTION'])
-    return key, len(contract.keys())
+    ca = get_coded(doc['TED_EXPORT']['CODED_DATA_SECTION'])
+    return ca
+
+
+
 
 
 if __name__ == "__main__":
@@ -179,15 +204,25 @@ if __name__ == "__main__":
     # List xml files
     files = os.listdir(DIR)
 
+    types = ['FD_CONTRACT_AWARD',
+             'FD_CONTRACT_AWARD_DEFENCE',
+             'FD_CONTRACT_AWARD_UTILITIES',
+             'FD_CONTRACT_MOVE',
+             'FD_OTH_NOT']
     keys = []
     collection = []
     for f in files:
         # Extract data from xml file
         #data = extract(os.path.join(DIR, f))
         #collection.append(data)
-        keys.append((get_keys(os.path.join(DIR, f))))
+        contract_keys = get_keys(os.path.join(DIR, f))
+        if contract_keys:
+            keys.append(contract_keys)
 
-    df = pd.DataFrame(collection)
+
+
+
+    df = pd.DataFrame(keys)
     set(df.contract)
 
 
