@@ -5,41 +5,58 @@ import pandas as pd
 NMSP = {'ted': 'http://publications.europa.eu/TED_schema/Export'}
 
 
-def contract_item(xml):
-    obj = dict()
+def get_total_value(xml):
+    """
+    Get TOTAL_VALUE of the contract
+    :param xml:
+    :return: dictionary:
+        - CURRENCY: currency of the contract
+
+        - VALUE: value, if SINGLE_VALUE
+            or
+        - LOW, HIGH: lower and higher range values, if RANGE_VALUE
+    """
     if xml.xpath("name(*) = 'SINGLE_VALUE'"):
-        currency, value = xml.xpath(".//ted:VALUE/@CURRENCY | .//ted:VALUE/text()",
-                                      namespaces=NMSP)
+        currency, value = xml.xpath(".//ted:VALUE/@CURRENCY | "
+                                    ".//ted:VALUE/text()",
+                                    namespaces=NMSP)
         return {'CURRENCY': currency,
                 'VALUE': value}
     else:
         assert (xml.xpath("name(*) = 'RANGE_VALUE'"))
-        low_currency, low_value = xml.xpath(".//ted:VALUE[1]/@CURRENCY | .//ted:VALUE[1]/text()",
+        low_currency, low_value = xml.xpath(".//ted:VALUE[1]/@CURRENCY | "
+                                            ".//ted:VALUE[1]/text()",
                                             namespaces=NMSP)
-        high_currency, high_value = xml.xpath(".//ted:VALUE[2]/@CURRENCY | .//ted:VALUE[2]/text()",
+        high_currency, high_value = xml.xpath(".//ted:VALUE[2]/@CURRENCY | "
+                                              ".//ted:VALUE[2]/text()",
                                               namespaces=NMSP)
-
-        return {'LOW':  {'CURRENCY': low_currency,
-                         'VALUE': low_value},
-                'HIGH': {'CURRENCY': high_currency,
-                         'VALUE': high_value}}
+        assert(low_currency == high_currency)  # Assert equal currencies
+        return {'CURRENCY': low_currency,
+                'LOW': low_value,
+                'HIGH': high_value}
 
 
 def get_notice(xml):
     """
-    Get NOTICE_DATA Information: some general information related to the notice,
-    or information which is extracted from the notice
+    Get NOTICE_DATA Information: some general information related to the
+    notice, or information which is extracted from the notice
     :param xml:
     :return: dictionary:
         - NO_DOC_OJS: Notice number in TED
-        - ORIGINAL_NUTS: Region code(s) of the place of performance or delivery
-                         A 2-5 digits code of the “Nomenclature of Territorial Units for Statistics”
-        - ORIGINAL_CPV: Product or service 8 digits code(s) of the Common Procurement Vocabulary
-        - ISO_COUNTRY: 2-characters ISO code of the country where the contracting body is located
-        - VALUES_LIST: Estimated total value(s) or total final value(s) of the procurement
+        - [ORIGINAL_NUTS]: Region code(s) of the place of performance
+                           or delivery
+                           A 2-5 digits code of the “Nomenclature of
+                           Territorial Units for Statistics”
+        - [ORIGINAL_CPV]: Product or service 8 digits code(s) of the
+                          Common Procurement Vocabulary
+        - ISO_COUNTRY: 2-characters ISO code of the country where the
+                       contracting body is located
+        - VALUES_LIST: Estimated total value(s) or total final value(s)
+                       of the procurement
         - IA_URL_GENERAL: Main internet address (URL) of the contracting body
-        - REF_NOTICE: Reference notice number in TED.
-                      Referencing a previous publication (prior information, corrigendum, ...)
+        - [REF_NOTICE]: Reference notice number in TED.
+                      Referencing a previous publication
+                      (prior information, corrigendum, ...)
     """
 
     obj = dict()
@@ -47,19 +64,23 @@ def get_notice(xml):
     for item in ['ORIGINAL_NUTS', 'ORIGINAL_CPV']:
         obj[item] = xml.xpath("ted:*[local-name() = $name]/@CODE",
                               namespaces=NMSP,
-                              name=item)
+                              name=item)  # 0 or multiple elements
 
     obj['NO_DOC_OJS'] = xml.xpath("ted:NO_DOC_OJS/text()",
-                        namespaces=NMSP)
+                                  namespaces=NMSP)[0]  # Compulsory, only one
 
     obj['ISO_COUNTRY'] = xml.xpath("ted:ISO_COUNTRY/@VALUE",
-                                  namespaces=NMSP)
+                                   namespaces=NMSP)[0]  # Compulsory, only one
 
-    obj['IA_URL_GENERAL'] = xml.xpath("ted:IA_URL_GENERAL/text()",
-                                  namespaces=NMSP)
+    url = xml.xpath("ted:IA_URL_GENERAL/text()", namespaces=NMSP)
+    if url:
+        assert(len(url) == 1)
+        obj['IA_URL_GENERAL'] = url[0]
+    else:
+        obj['IA_URL_GENERAL'] = None
 
     obj['REF_NOTICE'] = xml.xpath("ted:REF_NOTICE/ted:NO_DOC_OJS/text()",
-                                      namespaces=NMSP)
+                                  namespaces=NMSP)  # 0 or multiple elements
 
     values = xml.xpath("ted:VALUES_LIST", namespaces=NMSP)
 
@@ -67,23 +88,25 @@ def get_notice(xml):
         assert(len(values) == 1)
 
         global_val = values[0].xpath(".//ted:VALUES[@TYPE = 'GLOBAL']",
-                                  namespaces=NMSP)
+                                     namespaces=NMSP)
+        obj['GLOBAL_VALUE'] = {}
         if global_val:
-            assert(len(global_val) == 1)
-            obj['GLOBAL_VALUE'] = contract_item(global_val[0])
+            assert(len(global_val) == 1)  # Can be only one
+            obj['GLOBAL_VALUE'] = get_total_value(global_val[0])
 
         obj['CONTRACT_VALUE'] = []
         contract_val = values[0].xpath(".//ted:VALUES[@TYPE = 'CONTRACT']",
                                     namespaces=NMSP)
-        for c_val in contract_val:
-            obj['CONTRACT_VALUE'].append(contract_item(c_val))
+        for c_val in contract_val:  # Can be multiple
+            obj['CONTRACT_VALUE'].append(get_total_value(c_val))
 
     return obj
 
 
 def get_codif(xml):
     """
-    Get CODIF_DATA Information: descriptive metadata related to the notice content
+    Get CODIF_DATA Information: descriptive metadata related to
+    the notice content
     :param xml:
     :return: dictionary:
         - TD_DOCUMENT_TYPE: Type of awarding authority
@@ -94,71 +117,88 @@ def get_codif(xml):
         - TY_TYPE_BID: Type of bid
         - AC_AWARD_CRIT: Type of awarding criteria
         - MA_MAIN_ACTIVITIES: Main activity of the contracting body
+                             (multiple values)
     """
     obj = dict()
 
-    for item in ['TD_DOCUMENT_TYPE', 'AA_AUTHORITY_TYPE', 'NC_CONTRACT_NATURE', 'PR_PROC',
-                 'RP_REGULATION', 'TY_TYPE_BID', 'AC_AWARD_CRIT', 'MA_MAIN_ACTIVITIES' ]:
-        obj[item] = xml.xpath("ted:*[local-name() = $name]/@CODE",
-                              namespaces=NMSP,
-                              name=item)
+    for item in ['TD_DOCUMENT_TYPE', 'AA_AUTHORITY_TYPE', 'NC_CONTRACT_NATURE',
+                 'PR_PROC', 'RP_REGULATION', 'TY_TYPE_BID', 'AC_AWARD_CRIT']:
+        el = xml.xpath("ted:*[local-name() = $name]/@CODE",
+                       namespaces=NMSP,
+                       name=item)
+        assert (len(el) == 1)
+        obj[item] = el[0]  # Compulsory, contains only one element
+
+    obj['MA_MAIN_ACTIVITIES'] = xml.xpath("ted:*[local-name() = "
+                                          "'MA_MAIN_ACTIVITIES']/@CODE",
+                                          namespaces=NMSP)  # multiple elements
     return obj
 
 
 def get_coded(xml):
+    """
+    Get metadata of the contract
+    :param xml:
+    :return: dictionary with data from NOTICE_DATA and CODIF_DATA sections
+    """
 
-    notice_data = get_notice(xml.xpath('ted:CODED_DATA_SECTION/ted:NOTICE_DATA',
-                            namespaces=NMSP)[0])
-
-    codif_data = get_codif(xml.xpath('ted:CODED_DATA_SECTION/ted:CODIF_DATA',
-                           namespaces=NMSP)[0])
-
-    codif_data.update(notice_data)
-
-    return codif_data
+    obj = dict()
+    obj.update(get_notice(xml.xpath("ted:CODED_DATA_SECTION/ted:NOTICE_DATA",
+                                    namespaces=NMSP)[0]))
+    obj.update(get_codif(xml.xpath("ted:CODED_DATA_SECTION/ted:CODIF_DATA",
+                                   namespaces=NMSP)[0]))
+    return obj
 
 
 def get_authority(xml):
 
     obj = dict()
 
-    obj['OFFICIALNAME'] = xml.xpath("*/ted:CA_CE_CONCESSIONAIRE_PROFILE/ted:ORGANISATION/ted:OFFICIALNAME/text()",
-                          namespaces=NMSP)
-    obj['TYPE_OF_CONTRACTING_AUTHORITY'] = xml.xpath(".//ted:TYPE_OF_CONTRACTING_AUTHORITY/@VALUE",
+    obj['CA_OFFICIALNAME'] = xml.xpath("*/ted:CA_CE_CONCESSIONAIRE_PROFILE/"
+                                       "ted:ORGANISATION/ted:OFFICIALNAME/"
+                                       "text()",
+                                       namespaces=NMSP)
+    obj['TYPE_OF_CONTRACTING_AUTHORITY'] = \
+        xml.xpath(".//ted:TYPE_OF_CONTRACTING_AUTHORITY/@VALUE",
                                            namespaces=NMSP)
     return obj
 
 
 def get_cost(xml):
-    cost = dict()
 
     currency = xml.attrib['CURRENCY']
     vat = xml.xpath(".//ted:VAT_PRCT/text()", namespaces=NMSP)
 
     if xml.xpath("boolean(./ted:VALUE_COST)", namespaces=NMSP):
-        cost['SINGLE_VALUE'] = {
+        return {
             'CURRENCY': currency,
-            'VALUE_COST': xml.xpath("./ted:VALUE_COST/text()", namespaces=NMSP),
+            'VALUE_COST': xml.xpath("./ted:VALUE_COST/text()",
+                                    namespaces=NMSP),
             'VAT_PRCT': vat
         }
     if xml.xpath("boolean(./ted:RANGE_VALUE_COST)", namespaces=NMSP):
-        cost['RANGE_VALUE'] = {
+        return {
             'CURRENCY': currency,
-            'LOW': xml.xpath("./ted:RANGE_VALUE_COST/LOW_VALUE/text()", namespaces=NMSP),
-            'HIGH': xml.xpath("./ted:RANGE_VALUE_COST/HIGH_VALUE/text()", namespaces=NMSP),
+            'LOW': xml.xpath("./ted:RANGE_VALUE_COST/LOW_VALUE/text()",
+                             namespaces=NMSP),
+            'HIGH': xml.xpath("./ted:RANGE_VALUE_COST/HIGH_VALUE/text()",
+                              namespaces=NMSP),
             'VAT_PRCT': vat
         }
-    return cost
 
 
 def get_contract_value(xml):
 
     obj = dict()
 
-    if xml.xpath("boolean(./ted:COSTS_RANGE_AND_CURRENCY_WITH_VAT_RATE)", namespaces=NMSP):
-        obj['COST'] = get_cost(xml.xpath("./ted:COSTS_RANGE_AND_CURRENCY_WITH_VAT_RATE", namespaces=NMSP)[0])
-    if xml.xpath("boolean(./ted:INITIAL_ESTIMATED_TOTAL_VALUE_CONTRACT)", namespaces=NMSP):
-        obj['ESTIMATE'] = get_cost(xml.xpath("./ted:INITIAL_ESTIMATED_TOTAL_VALUE_CONTRACT", namespaces=NMSP)[0])
+    if xml.xpath("boolean(./ted:COSTS_RANGE_AND_CURRENCY_WITH_VAT_RATE)",
+                 namespaces=NMSP):
+        obj['COST'] = get_cost(xml.xpath("./ted:COSTS_RANGE_AND_CURRENCY_WITH_VAT_RATE",
+                                         namespaces=NMSP)[0])
+    if xml.xpath("boolean(./ted:INITIAL_ESTIMATED_TOTAL_VALUE_CONTRACT)",
+                 namespaces=NMSP):
+        obj['ESTIMATE'] = get_cost(xml.xpath("./ted:INITIAL_ESTIMATED_TOTAL_VALUE_CONTRACT",
+                                             namespaces=NMSP)[0])
 
     return obj
 
@@ -169,11 +209,14 @@ def get_object(xml):
 
     obj['NUTS'] = xml.xpath(".//ted:NUTS/@CODE", namespaces=NMSP)
 
-    obj['CPV_MAIN'] = xml.xpath(".//ted:CPV_MAIN/ted:CPV_CODE/@CODE", namespaces=NMSP)
+    obj['CPV_MAIN'] = xml.xpath(".//ted:CPV_MAIN/ted:CPV_CODE/@CODE",
+                                namespaces=NMSP)
 
-    obj['CONTRACT_COVERED_GPA'] = xml.xpath(".//ted:CONTRACT_COVERED_GPA/@VALUE", namespaces=NMSP)
+    obj['CONTRACT_COVERED_GPA'] = xml.xpath(".//ted:CONTRACT_COVERED_GPA/@VALUE",
+                                            namespaces=NMSP)
 
-    framework = xml.xpath(".//ted:CONCLUSION_FRAMEWORK_AGREEMENT", namespaces=NMSP)
+    framework = xml.xpath(".//ted:CONCLUSION_FRAMEWORK_AGREEMENT",
+                          namespaces=NMSP)
     if framework:
         obj['CONCLUSION_FRAMEWORK_AGREEMENT'] = True
 
@@ -194,14 +237,18 @@ def get_award(xml):
 
     obj = dict()
     obj['CONTRACTOR_COUNTRY'] = xml.xpath((".//ted:ECONOMIC_OPERATOR_NAME_ADDRESS/"
-                                           "ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME/ted:COUNTRY/@VALUE"),
+                                           "ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME/"
+                                           "ted:COUNTRY/@VALUE"),
                                           namespaces=NMSP)
     obj['ADDRESS'] = " ".join(xml.xpath((".//ted:ECONOMIC_OPERATOR_NAME_ADDRESS/"
-                                         "ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME//ted:ADDRESS/text() | "
+                                         "ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME//"
+                                         "ted:ADDRESS/text() | "
                                          ".//ted:ECONOMIC_OPERATOR_NAME_ADDRESS/"
-                                         "ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME//ted:TOWN/text()  | "
+                                         "ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME//"
+                                         "ted:TOWN/text()  | "
                                          ".//ted:ECONOMIC_OPERATOR_NAME_ADDRESS/"
-                                         "ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME//ted:POSTAL_CODE/text()"),
+                                         "ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME//"
+                                         "ted:POSTAL_CODE/text()"),
                                         namespaces=NMSP))
     values = xml.xpath(".//ted:CONTRACT_VALUE_INFORMATION",
                                    namespaces=NMSP)
@@ -215,10 +262,15 @@ def get_award(xml):
 
 def get_contract(xml):
 
+    obj = dict()
+
     form = xml.xpath('ted:FORM_SECTION', namespaces=NMSP)[0]
 
     if form.xpath('name(child::*/*)') == 'FD_OTH_NOT':
-        return {'OTH_NOT' : True}
+        obj['OTH_NOT'] = True
+        return obj
+    else:
+        obj['OTH_NOT'] = False
 
     if len(form.xpath('*')) > 1:
         for lg in ['EN', 'FR', 'DE']:
@@ -232,19 +284,19 @@ def get_contract(xml):
         contract = form.xpath("ted:*[starts-with(local-name(), 'CONTRACT_')]",
                               namespaces=NMSP)[0]
 
-    obj = dict()
-
     # CONTRACTING_AUTHORITY
     ca = contract.xpath(("*/ted:*[starts-with(local-name(), 'CONTRACTING') "
                          "or  local-name() = 'AUTHORITY_CONTRACT_MOVE']"),
                         namespaces=NMSP)
-    if len(ca) == 1:
-        obj['CONTRACTING_AUTHORITY'] = get_authority(ca[0])
+
+    assert(len(ca) == 1)
+    obj.update(get_authority(ca[0]))
 
     # OBJECT
     object_c = contract.xpath("*/ted:*[starts-with(local-name(), 'OBJECT')]",
                          namespaces=NMSP)
-    if len(object_c) == 1:
+    if object_c:
+        assert (len(object_c) == 1)
         obj['OBJECT'] = get_object(object_c[0])
 
     # AWARDS_OF_CONTRACT
@@ -266,9 +318,9 @@ def extract(path):
 
     obj['DOC_ID'] = root.get('DOC_ID', default=None)
 
-    obj['METADATA'] = get_coded(root)
+    obj.update(get_coded(root))
 
-    obj['FORM'] = get_contract(root)
+    obj.update(get_contract(root))
 
     return obj
 
@@ -280,11 +332,11 @@ if __name__ == "__main__":
     # List xml files
     files = os.listdir(DIR)
 
-    keys = []
     collection = []
     for f in files:
         # Extract data from xml file
-        data = extract(os.path.join(DIR, f))
+        file_path = os.path.join(DIR, f)
+        data = extract(file_path)
         collection.append(data)
 
     df = pd.DataFrame(collection)
