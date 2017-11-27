@@ -1,5 +1,4 @@
 import os
-import numpy as np
 from lxml import etree
 
 NMSP = {'ted': 'http://publications.europa.eu/TED_schema/Export'}
@@ -219,35 +218,32 @@ def get_object(xml):
     obj = dict()
 
     # Step 4.1: Extract OBJECT LOCATION, NUTS, MAIN_CPV
-    obj['OBJECT_NUTS'] = xml.xpath(".//ted:NUTS/@CODE",
-                                   namespaces=NMSP)  # 0 or more
-    obj['OBJECT_NUTS_EXTRA'] = " ".join(
-        xml.xpath(".//ted:LOCATION/ted:P/text()",  # 0 or more
-                  namespaces=NMSP))  # Concatenate all strings
-    obj['OBJECT_CPV_MAIN'] = xml.xpath(".//ted:CPV_MAIN/ted:CPV_CODE/@CODE",
-                                       namespaces=NMSP)  # 0 or 1
+    obj['NUTS'] = xml.xpath(".//ted:NUTS/@CODE", namespaces=NMSP)  # 0 or more
+    obj['NUTS_EXTRA'] = xml.xpath(".//ted:LOCATION/ted:P/text()",
+                                  namespaces=NMSP)  # 0 or more
+    obj['CPV_MAIN'] = xml.xpath(".//ted:CPV_MAIN/ted:CPV_CODE/@CODE",
+                                namespaces=NMSP)  # 0 or 1
 
     # Step 4.2: Extract CONTRACT_COVERED_GPA, CONCLUSION_FRAMEWORK_AGREEMENT,
     # CONTRACTS_DPS
     obj['CONTRACT_COVERED_GPA'] = xml.xpath(
         ".//ted:CONTRACT_COVERED_GPA/@VALUE", namespaces=NMSP)  # 0 or 1
 
-    if xml.xpath("boolean(.//ted:CONCLUSION_FRAMEWORK_AGREEMENT)",
-                 namespaces=NMSP):
-        obj['CONCLUSION_FRAMEWORK_AGREEMENT'] = True
+    obj['CONCLUSION_FRAMEWORK_AGREEMENT'] = xml.xpath(  # True/False
+        "boolean(.//ted:CONCLUSION_FRAMEWORK_AGREEMENT)", namespaces=NMSP)
 
-    if xml.xpath("boolean(.//ted:CONTRACTS_DPS)", namespaces=NMSP):
-        obj['CONTRACTS_DPS'] = True
+    obj['CONTRACTS_DPS'] = xml.xpath("boolean(.//ted:CONTRACTS_DPS)",
+                                     namespaces=NMSP)  # True/False
 
-    # Step 4.3: Extract TOTAL_FINAL_VALUE
+    # Step 4.3: Extract TOTAL_VALUE
     values = xml.xpath("ted:TOTAL_FINAL_VALUE", namespaces=NMSP)
 
     if values:
-        obj['OBJECT_TOTAL_VALUE'] = get_contract_value(values[0])
+        obj['TOTAL_VALUE'] = get_contract_value(values[0])
 
     if xml.xpath("boolean(./ted:COSTS_RANGE_AND_CURRENCY_WITH_VAT_RATE)",
                  namespaces=NMSP):
-        obj['OBJECT_TOTAL_VALUE'] = get_contract_value(xml)
+        obj['TOTAL_VALUE'] = get_contract_value(xml)
 
     return obj
 
@@ -256,31 +252,34 @@ def get_award(xml):
 
     obj = dict()
 
-    # Step 5.1: Extract CONTRACTOR OFFICIALNAME
-    contractor = xml.xpath(
+    # Step 5.1: Extract CONTRACTOR DATA
+    contractor = dict()
+    contact_data = xml.xpath(
         ("./ted:ECONOMIC_OPERATOR_NAME_ADDRESS"
          "/ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME"
          "| ./ted:CONTACT_DATA_WITHOUT_RESPONSIBLE_NAME_CHP"),
         namespaces=NMSP)
 
-    if contractor:
-        contractor = contractor[0]
+    if contact_data:
+        contact_data = contact_data[0]
 
         # Step 5.1.2: Extract CONTRACTOR NAME
-        obj['CONTRACTOR'] = contractor.xpath(
+        contractor['OFFICIALNAME'] = contact_data.xpath(
             ("./ted:ORGANISATION/ted:OFFICIALNAME/text() | "
              "./ted:ORGANISATION/text()"), namespaces=NMSP)
 
         # Step 5.1.2: Extract CONTRACTOR ADDRESS
-        obj['COUNTRY'] = contractor.xpath("ted:COUNTRY/@VALUE",
-                                          namespaces=NMSP)
-        obj['ADDRESS'] = contractor.xpath("ted:ADDRESS/text()",
-                                          namespaces=NMSP)
-        obj['TOWN'] = contractor.xpath("ted:TOWN/text()", namespaces=NMSP)
-        obj['POSTAL_CODE'] = contractor.xpath("ted:POSTAL_CODE/text()",
-                                              namespaces=NMSP)
+        contractor['COUNTRY'] = contact_data.xpath("ted:COUNTRY/@VALUE",
+                                                   namespaces=NMSP)
+        contractor['ADDRESS'] = contact_data.xpath("ted:ADDRESS/text()",
+                                                   namespaces=NMSP)
+        contractor['TOWN'] = contact_data.xpath("ted:TOWN/text()",
+                                                namespaces=NMSP)
+        contractor['POSTAL_CODE'] = contact_data.xpath(
+            "ted:POSTAL_CODE/text()", namespaces=NMSP)
+        obj['CONTRACTOR'] = contractor
 
-    # Step 5.2: Extract CONTRACTOR VALUE
+    # Step 5.2: Extract CONTRACTOR CONTRACT VALUE
     values = xml.xpath(
       ".//ted:CONTRACT_VALUE_INFORMATION | .//ted:INFORMATION_VALUE_CONTRACT",
       namespaces=NMSP)
@@ -328,7 +327,7 @@ def get_contract(xml):
          "ted:*[starts-with(local-name(), 'NAME')]//"
          "ted:ORGANISATION"), namespaces=NMSP)[0]
     obj['CONTRACTING_AUTHORITY'] = authority.xpath(  # Compulsory, only one
-        "ted:OFFICIALNAME/text() | ./text()", namespaces=NMSP)[0]
+        "ted:OFFICIALNAME/text() | ./text()", namespaces=NMSP)
 
     # Step 4: Extract CONTRACT OBJECT information
     contract_object = contract.xpath(  # Compulsory, only one
@@ -360,7 +359,7 @@ def get_contract(xml):
 def extract(path):
     """
     Main function to extract data from xml file
-    :param xml:
+    :param path:
     :return: dictionary of the main sections:
         - DOC_ID
         - CODED_DATA
