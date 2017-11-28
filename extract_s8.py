@@ -159,28 +159,24 @@ def get_cost(xml):
         - VAT_PRCT
     """
 
-    currency = xml.attrib['CURRENCY']
+    obj = dict()
 
-    vat = xml.xpath(".//ted:VAT_PRCT/text()", namespaces=NMSP)
+    obj['CURRENCY'] = xml.attrib['CURRENCY']
+
+    obj['VAT_PRCT'] = xml.xpath(".//ted:VAT_PRCT/text()", namespaces=NMSP)
 
     if xml.xpath("boolean(./ted:VALUE_COST)", namespaces=NMSP):
 
-        return {
-            'CURRENCY': currency,
-            'VALUE': xml.xpath("./ted:VALUE_COST/text()", namespaces=NMSP),
-            'VAT_PRCT': vat
-        }
+        obj['VALUE'] = xml.xpath("./ted:VALUE_COST/text()", namespaces=NMSP)
 
     if xml.xpath("boolean(./ted:RANGE_VALUE_COST)", namespaces=NMSP):
 
-        return {
-            'CURRENCY': currency,
-            'LOW_VALUE': xml.xpath("./ted:RANGE_VALUE_COST/LOW_VALUE/text()",
-                                   namespaces=NMSP),
-            'HIGH_VALUE': xml.xpath("./ted:RANGE_VALUE_COST/HIGH_VALUE/text()",
-                                    namespaces=NMSP),
-            'VAT_PRCT': vat
-        }
+        obj['LOW_VALUE'] = xml.xpath("./ted:RANGE_VALUE_COST/ted:LOW_VALUE/text()",
+                                   namespaces=NMSP)
+        obj['HIGH_VALUE'] = xml.xpath("./ted:RANGE_VALUE_COST/ted:HIGH_VALUE/text()",
+                                    namespaces=NMSP)
+
+    return obj
 
 
 def get_contract_value(xml):
@@ -229,21 +225,23 @@ def get_object(xml):
     obj['CONTRACT_COVERED_GPA'] = xml.xpath(
         ".//ted:CONTRACT_COVERED_GPA/@VALUE", namespaces=NMSP)  # 0 or 1
 
-    obj['CONCLUSION_FRAMEWORK_AGREEMENT'] = xml.xpath(  # True/False
-        "boolean(.//ted:CONCLUSION_FRAMEWORK_AGREEMENT)", namespaces=NMSP)
+    obj['CONCLUSION_FRAMEWORK_AGREEMENT'] = ['YES'] if xml.xpath(
+        "boolean(.//ted:CONCLUSION_FRAMEWORK_AGREEMENT)", namespaces=NMSP) \
+        else ['NO'] # YES/NO
 
-    obj['CONTRACTS_DPS'] = xml.xpath("boolean(.//ted:CONTRACTS_DPS)",
-                                     namespaces=NMSP)  # True/False
+    obj['CONTRACTS_DPS'] = ['YES'] if xml.xpath(
+        "boolean(.//ted:CONTRACTS_DPS)", namespaces=NMSP) \
+        else ['NO']  # YES/NO
 
     # Step 4.3: Extract TOTAL_VALUE
     values = xml.xpath("ted:TOTAL_FINAL_VALUE", namespaces=NMSP)
 
     if values:
-        obj['TOTAL_VALUE'] = get_contract_value(values[0])
+        obj['CONTRACT_VALUE'] = get_contract_value(values[0])
 
     if xml.xpath("boolean(./ted:COSTS_RANGE_AND_CURRENCY_WITH_VAT_RATE)",
                  namespaces=NMSP):
-        obj['TOTAL_VALUE'] = get_contract_value(xml)
+        obj['CONTRACT_VALUE'] = get_contract_value(xml)
 
     return obj
 
@@ -285,7 +283,7 @@ def get_award(xml):
       namespaces=NMSP)
 
     if values:
-        obj['VALUE'] = get_contract_value(values[0])
+        obj['CONTRACT_VALUE'] = get_contract_value(values[0])
 
     return obj
 
@@ -306,9 +304,9 @@ def get_contract(xml):
 
     # Step 1: Skip if it is a form with no structure. Too difficult to extract
     if form.xpath("name(*) = 'OTH_NOT'"):
-        obj['OTH_NOT'] = True
+        obj['OTH_NOT'] = ['YES']
         return obj
-    obj['OTH_NOT'] = False
+    obj['OTH_NOT'] = ['NO']
 
     # Step 2: Extract the contract award section. Prefer English, or French, or
     # German translation if there. Otherwise pick first language available.
