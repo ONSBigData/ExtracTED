@@ -402,7 +402,5 @@ if __name__ == "__main__":
             for f in files:
                 # Extract data from xml file
                 file_path = os.path.join(DIR, f)
-                try:
-                    data = extract(file_path)
-                except Exception as e:
-                    print(e)
+                data = extract(file_path)
+                collection.append(data)

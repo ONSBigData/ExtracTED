@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from extractor import extract
+from extract_s8 import extract
 from sanitiser import sanitise
 from voluptuous import Schema, Required, All, Optional, Length, Url, Any, \
     MultipleInvalid, Match
