@@ -404,5 +404,8 @@ if __name__ == "__main__":
                 file_path = os.path.join(DIR, f)
                 try:
                     data = extract(file_path)
+                    data['YEAR'] = int(Y)
+                    data['MONTH'] = int(M)
+                    data['XML_FILE'] = f
                 except Exception as e:
                     print(e)

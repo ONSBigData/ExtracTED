@@ -8,6 +8,9 @@ from voluptuous import Schema, Required, All, Optional, Length, Url, Any, \
 
 """
 - DOC_ID
+- YEAR
+- MONTH
+- XML_FILE
 - CODED_DATA
     - NOTICE_DATA
     - CODIF_DATA
@@ -65,6 +68,9 @@ cpv = Match('^(' + '|'.join(cpvs.CODE) + ')')
 # Document Schema
 schema = Schema({
     Required('DOC_ID'): All(str),
+    Required('YEAR'): All(str),
+    Required('MONTH'): All(str),
+    Required('XML_FILE'): All(str),
     Required('CODED_DATA'): All({
         Required('NOTICE_DATA'): All({
             Required('NO_DOC_OJS'): All(str),

@@ -150,8 +150,11 @@ def sanitise(doc):
             - AWARDS_OF_CONTRACT
     """
 
-    # Step 1: Check DOC_ID
+    # Step 1: Check DOC_ID, YEAR, MONTH, XML_FILE
     check_compulsory(doc, 'DOC_ID')
+    check_compulsory(doc, 'YEAR')
+    check_compulsory(doc, 'MONTH')
+    check_compulsory(doc, 'XML_FILE')
 
     # Step 2: Sanitise CODED_DATA
     assert doc['CODED_DATA']
