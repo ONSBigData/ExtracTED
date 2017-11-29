@@ -68,8 +68,8 @@ cpv = Match('^(' + '|'.join(cpvs.CODE) + ')')
 # Document Schema
 schema = Schema({
     Required('DOC_ID'): All(str),
-    Required('YEAR'): All(str),
-    Required('MONTH'): All(str),
+    Required('YEAR'): All(int),
+    Required('MONTH'): All(int),
     Required('XML_FILE'): All(str),
     Required('CODED_DATA'): All({
         Required('NOTICE_DATA'): All({
