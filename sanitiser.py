@@ -1,6 +1,6 @@
 import os
 import re
-from extract_s8 import extract
+from extractor import extract
 
 
 def check_compulsory(obj, key):
