@@ -19,17 +19,21 @@ from voluptuous import Schema, Required, All, Optional, Length, Url, Any, \
 
 # Lookups
 iso_country = pd.read_csv('/Volumes/WD/Lookups/ISO_COUNTRY.csv', dtype='str',
-                          encoding='latin')
+                      encoding='latin', na_values='')
 cpvs = pd.read_csv('/Volumes/WD/Lookups/CPV.csv', dtype='str')
 ma = pd.read_csv('/Volumes/WD/Lookups/MA_MAIN_ACTIVITY.csv', dtype='str')
 td = pd.read_csv('/Volumes/WD/Lookups/TD_DOCUMENT_TYPE.csv', dtype='str')
 nc = pd.read_csv('/Volumes/WD/Lookups/NC_CONTRACT_NATURE.csv', dtype='str')
 aa = pd.read_csv('/Volumes/WD/Lookups/AA_AUTHORITY_TYPE.csv', dtype='str')
 pr = pd.read_csv('/Volumes/WD/Lookups/PR_PROC.csv', dtype='str')
+ty = pd.read_csv('/Volumes/WD/Lookups/TY_TYPE_BID.csv', dtype='str')
+ac = pd.read_csv('/Volumes/WD/Lookups/AC_AWARD_CRIT.csv', dtype='str')
+rp = pd.read_csv('/Volumes/WD/Lookups/RP_REGULATION.csv', dtype='str')
 
 # Allowed Currencies
 currencies = ['EUR', 'BGN', 'CHF', 'USD', 'HRK', 'CZK', 'DKK', 'HUF', 'SEK',
-              'NOK', 'LTL', 'TRY', 'PLN', 'MKD', 'RON', 'JPY', 'ISK', 'SKK']
+              'NOK', 'LTL', 'TRY', 'PLN', 'MKD', 'RON', 'JPY', 'ISK', 'SKK',
+              'LVL', 'GBP', 'MTL', 'CYP', 'EEK']
 
 # Sub Schemas
 value = Schema({
@@ -70,7 +74,7 @@ schema = Schema({
                                                    # with valid CPV code
             Required('ISO_COUNTRY'): All(str, Length(2),
                                          Any(*iso_country.Code)),
-            Optional('IA_URL_GENERAL'): All(Url()),
+            Optional('IA_URL_GENERAL'): All(str),
             Optional('REF_NOTICE'): All([str]),
             Optional('VALUES_LIST'): All({
                 Optional('GLOBAL_VALUE'): All(value),
@@ -82,16 +86,16 @@ schema = Schema({
             Required('AA_AUTHORITY_TYPE'): All(str, Any(*aa.CODE)),
             Required('NC_CONTRACT_NATURE'): All(str, Any(*nc.CODE)),
             Required('PR_PROC'): All(str, Any(*pr.CODE)),
-            Required('RP_REGULATION'): All(str),
-            Required('TY_TYPE_BID'): All(str),
-            Required('AC_AWARD_CRIT'): All(str),
+            Required('RP_REGULATION'): All(str, Any(*rp.CODE)),
+            Required('TY_TYPE_BID'): All(str, Any(*ty.CODE)),
+            Required('AC_AWARD_CRIT'): All(str, Any(*ac.CODE)),
             Optional('MA_MAIN_ACTIVITIES'): All([Any(*ma.CODE)])
         })
     }),
     Required('CONTRACT'): All({
         Required('OTH_NOT'): All(Any('YES', 'NO')),
-        Required('CONTRACTING_AUTHORITY'): All(str),
-        Required('CONTRACT_OBJECT'): All({
+        Optional('CONTRACTING_AUTHORITY'): All(str),
+        Optional('CONTRACT_OBJECT'): All({
             Optional('NUTS'): All([nuts]),
             Optional('NUTS_EXTRA'): All(str),
             Optional('CPV_MAIN'): All(cpv),
@@ -102,7 +106,7 @@ schema = Schema({
             Optional('CPV_MAIN'): All(str),
             Optional('CONTRACT_VALUE'): All(contract_value)
         }),
-        Required('AWARDS_OF_CONTRACT'): All([{
+        Optional('AWARDS_OF_CONTRACT'): All([{
             Optional('CONTRACTOR'): All(contractor),
             Optional('CONTRACT_VALUE'): All(contract_value),
         }])
@@ -112,7 +116,8 @@ schema = Schema({
 if __name__ == "__main__":
 
     os.chdir('/Volumes/WD/S8')
-    years = ['2013']
+    Y = '2013'
+    M = '01'
 
     years = ['2013', '2014', '2015', '2016']
     months = ['01', '02', '03', '04', '05', '06', '07', '08',
@@ -135,6 +140,5 @@ if __name__ == "__main__":
                 try:
                     schema(data)
                 except MultipleInvalid as e:
-                    print(str(e) + ' ---- year: ' + Y + ' -----month: ' + M)
-
-                collection.append(data)
+                    collection.append(data)
+                    print(str(e) + ' ---- file: ' + file_path)
