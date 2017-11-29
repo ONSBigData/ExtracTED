@@ -1,0 +1,12 @@
+CODE,DESCRIPTION
+1,Ministry or any other national or federal authority
+2,Armed forces
+3,Regional or local authority
+4,Utilities entity
+5,European Institution/Agency or International Organisation
+6,Body governed by public law
+8,Other
+9,Not Applicable
+N,National or federal Agency/Office
+R,Regional or local Agency/Office
+Z,Not Specified

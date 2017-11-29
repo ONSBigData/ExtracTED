@@ -1,0 +1,17 @@
+CODE, DESCRIPTION
+1,Open procedure
+2,Restricted procedure
+3,Accelerated restricted procedure
+4,Negotiated procedure
+6,Accelerated negotiated procedure
+8,Other
+9,Not applicable
+A,Direct award
+B,Competitive procedure with negotiation
+C,Competitive dialogue
+E,Concession award procedure
+F,Concession award without prior concession notice
+G,Innovation partnership
+T,Negotiated procedure without a call for competition
+V,Contract award without prior publication
+Z,Not specified
