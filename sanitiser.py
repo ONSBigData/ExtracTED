@@ -5,7 +5,6 @@ from extract_s8 import extract
 
 def check_compulsory(obj, key):
 
-
     assert obj[key]
     if isinstance(obj[key], list):
         obj[key] = obj[key][0]
@@ -35,7 +34,7 @@ def to_number(value):
     )
     except ValueError:
         print("Problem in converting value to numbeer : %s" % value)
-        return
+        return ''
 
 
 
@@ -66,7 +65,7 @@ def check_value(obj):
 
 
 def test_value_float(obj):
-    for item in ['VALUE', 'HIGH_VALUE', 'LOW_VALUE']:
+    for item in ['VALUE', 'HIGH_VALUE', 'LOW_VALUE', 'VAT_PRCT']:
         if (item in obj) & ~isinstance(obj.get(item, 'NaN'), float):
             obj.pop(item)
 
