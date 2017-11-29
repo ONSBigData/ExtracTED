@@ -22,7 +22,7 @@ from voluptuous import Schema, Required, All, Optional, Length, Url, Any, \
 
 # Lookups
 iso_country = pd.read_csv('./Lookups/ISO_COUNTRY.csv', dtype='str',
-                      encoding='latin', na_values='')
+                      encoding='latin', keep_default_na=False)
 cpvs = pd.read_csv('./Lookups/CPV.csv', dtype='str')
 ma = pd.read_csv('./Lookups/MA_MAIN_ACTIVITY.csv', dtype='str')
 td = pd.read_csv('./Lookups/TD_DOCUMENT_TYPE.csv', dtype='str')
