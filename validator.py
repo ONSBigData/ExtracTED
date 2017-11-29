@@ -18,17 +18,17 @@ from voluptuous import Schema, Required, All, Optional, Length, Url, Any, \
 """
 
 # Lookups
-iso_country = pd.read_csv('/Volumes/WD/Lookups/ISO_COUNTRY.csv', dtype='str',
+iso_country = pd.read_csv('./Lookups/ISO_COUNTRY.csv', dtype='str',
                       encoding='latin', na_values='')
-cpvs = pd.read_csv('/Volumes/WD/Lookups/CPV.csv', dtype='str')
-ma = pd.read_csv('/Volumes/WD/Lookups/MA_MAIN_ACTIVITY.csv', dtype='str')
-td = pd.read_csv('/Volumes/WD/Lookups/TD_DOCUMENT_TYPE.csv', dtype='str')
-nc = pd.read_csv('/Volumes/WD/Lookups/NC_CONTRACT_NATURE.csv', dtype='str')
-aa = pd.read_csv('/Volumes/WD/Lookups/AA_AUTHORITY_TYPE.csv', dtype='str')
-pr = pd.read_csv('/Volumes/WD/Lookups/PR_PROC.csv', dtype='str')
-ty = pd.read_csv('/Volumes/WD/Lookups/TY_TYPE_BID.csv', dtype='str')
-ac = pd.read_csv('/Volumes/WD/Lookups/AC_AWARD_CRIT.csv', dtype='str')
-rp = pd.read_csv('/Volumes/WD/Lookups/RP_REGULATION.csv', dtype='str')
+cpvs = pd.read_csv('./Lookups/CPV.csv', dtype='str')
+ma = pd.read_csv('./Lookups/MA_MAIN_ACTIVITY.csv', dtype='str')
+td = pd.read_csv('./Lookups/TD_DOCUMENT_TYPE.csv', dtype='str')
+nc = pd.read_csv('./Lookups/NC_CONTRACT_NATURE.csv', dtype='str')
+aa = pd.read_csv('./Lookups/AA_AUTHORITY_TYPE.csv', dtype='str')
+pr = pd.read_csv('./Lookups/PR_PROC.csv', dtype='str')
+ty = pd.read_csv('./Lookups/TY_TYPE_BID.csv', dtype='str')
+ac = pd.read_csv('./Lookups/AC_AWARD_CRIT.csv', dtype='str')
+rp = pd.read_csv('./Lookups/RP_REGULATION.csv', dtype='str')
 
 # Allowed Currencies
 currencies = ['EUR', 'BGN', 'CHF', 'USD', 'HRK', 'CZK', 'DKK', 'HUF', 'SEK',
@@ -115,7 +115,6 @@ schema = Schema({
 
 if __name__ == "__main__":
 
-    os.chdir('/Volumes/WD/S8')
     Y = '2013'
     M = '01'
 
@@ -129,7 +128,7 @@ if __name__ == "__main__":
         for M in months:
             print(M)
             # Folder containing xml files
-            DIR = os.path.join(os.getcwd(), Y + '-' + M)
+            DIR = os.path.join('/Volumes/WD/S8', Y + '-' + M)
             # List xml files
             files = os.listdir(DIR)
             for f in files:
