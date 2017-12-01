@@ -108,6 +108,7 @@ def get_codif(xml):
     the notice content
     :param xml:
     :return: dictionary:
+        - DS_DATE_DISPATCH: Date of dispatch of the notice. Format: yyyymmdd
         - TD_DOCUMENT_TYPE: Type of document
         - AA_AUTHORITY_TYPE: Type of awarding authority
         - NC_CONTRACT_NATURE: Nature of contract
@@ -128,6 +129,8 @@ def get_codif(xml):
                        name=item)
         obj[item] = el  # All Compulsory, only one
                         #  MA_MAIN_ACTIVITIES can be 0 or more
+    obj['DS_DATE_DISPATCH'] = xml.xpath(
+        "ted:*[local-name() = 'DS_DATE_DISPATCH']/text()", namespaces=NMSP)
 
     return obj
 
@@ -200,6 +203,18 @@ def get_contract_value(xml):
         obj['ESTIMATE'] = get_cost(xml.xpath(
             "./ted:INITIAL_ESTIMATED_TOTAL_VALUE_CONTRACT",
             namespaces=NMSP)[0])
+    if xml.xpath(
+            "boolean(.//ted:NUMBER_OF_YEARS) or boolean(.//ted:NUMBER_YEARS)",
+            namespaces=NMSP):
+        obj['NUMBER_OF_YEARS'] = xml.xpath(
+            ".//ted:NUMBER_OF_YEARS/text() | .//ted:NUMBER_YEARS/text()",
+            namespaces=NMSP)
+    if xml.xpath(
+            "boolean(.//ted:NUMBER_OF_MONTHS) or boolean(.//ted:NUMBER_MONTHS)",
+            namespaces=NMSP):
+        obj['NUMBER_OF_MONTHS'] = xml.xpath(
+            ".//ted:NUMBER_OF_MONTHS/text() | .//ted:NUMBER_MONTHS/text()",
+            namespaces=NMSP)
 
     return obj
 
@@ -404,8 +419,5 @@ if __name__ == "__main__":
                 file_path = os.path.join(DIR, f)
                 try:
                     data = extract(file_path)
-                    data['YEAR'] = int(Y)
-                    data['MONTH'] = int(M)
-                    data['XML_FILE'] = f
                 except Exception as e:
                     print(e)
