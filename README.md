@@ -16,19 +16,98 @@ Documents are extracted as Python dictionaries which can be saved in a MongoDB d
 The image below show an example of document as shown on the TED website.
 
 ## Example of extracted dictionary
-Fields, data types, and description of the scraped pages stored as MongoDB [documents](https://docs.mongodb.com/manual/core/document/).
+Fields and description of the extracted data
 
 Field  |   Data type  | Description
 ------------- | ------------- | -------------
-\_id  | ObjectId 	| Unique Index automatically created by MongoDB for each document
-company  | string  | Company Name. This field is part of the compound key for this collection
-url  | string 	| The URL of the webpage. This field is part of the compound key for this collection
-link_text  | string  | The link text, i.e. the text that was used to indicate the URL on the page where the link was found
-content  | array 	| The textual content of the webpage extracted using the dragnet library
-keywords  | array  | The list of unique keywords found either in the link text or in the link URL
+DOC_ID  | String 	| Unique document number in TED.
+
+### CODED_DATA section
+The CODED_DATA section is divided in 2 groups of data.
+- **NOTICE_DATA** contains data related to the notice
+- **CODIF_DATA** contains the META data (codification) related to the notice.
+
+#### NOTICE_DATA section
+Field  |   Data type  | Description
+------------- | ------------- | -------------
+NO_DOC_OJS  | String  | Notice number in TED
+ORIGINAL_NUTS  | List(String) 	| Region code(s) of the place of performance or delivery. A 2-5 digits code of the *Nomenclature of Territorial Units for Statistics*. Lookup values for first two digits: [ISO_COUNTRY.csv](Lookups/ISO_COUNTRY.csv)
+ORIGINAL_CPV  | List(String)  | Product or service 8 digits code(s) of the *Common Procurement Vocabulary*. Lookup values for first two digits: [CPV.csv](Lookups/CPV.csv)
+ISO_COUNTRY  | String 	| 2-characters ISO code of the country where the contracting body is located. Lookup values: [ISO_COUNTRY.csv](Lookups/ISO_COUNTRY.csv)
+IA_URL_GENERAL  | String  | Main internet address (URL) of the contracting body
+REF_NOTICE  | List(String) 	| Reference notice number in TED. Referencing a previous publication (prior information, corrigendum, ...)
+VALUES_LIST  | Total Value  | Estimated total value(s) or total final value of the procurement
+
+#### CODIF_DATA section
+Field  |   Data type  | Description
+------------- | ------------- | -------------
+DS_DATE_DISPATCH  | String  | Date of dispatch of the notice. Format: yyyymmdd
+TD_DOCUMENT_TYPE  | String 	| Type of document. Lookup values: [TD_DOCUMENT_TYPE.csv](Lookups/TD_DOCUMENT_TYPE.csv)
+AA_AUTHORITY_TYPE  | String  | Type of awarding authority. Lookup values: [AA_AUTHORITY_TYPE.csv](Lookups/AA_AUTHORITY_TYPE.csv)
+NC_CONTRACT_NATURE  | String 	| Nature of contract. Lookup values: [NC_CONTRACT_NATURE.csv](Lookups/NC_CONTRACT_NATURE.csv)
+PR_PROC  | String  | Type of procedure. Lookup values: [PR_PROC.csv](Lookups/PR_PROC.csv)
+RP_REGULATION  | String	| The regulation that applies to the procedure. Lookup values: [RP_REGULATION.csv](Lookups/RP_REGULATION.csv)
+TY_TYPE_BID  | String  | Type of bid. Lookup values: [TY_TYPE_BID.csv](Lookups/TY_TYPE_BID.csv)
+AC_AWARD_CRIT  | String  | Type of awarding criteria. Lookup values: [AC_AWARD_CRIT.csv](Lookups/AC_AWARD_CRIT.csv)
+MA_MAIN_ACTIVITIES  | List(String)  | Main activity of the contracting body. Lookup values: [MA_MAIN_ACTIVITIES.csv](Lookups/MA_MAIN_ACTIVITIES.csv)
+
+### CONTRACT section
+
+The CONTRACT section contains the notice itself, in the XML format.
+In the original XML file this section can be available in different translations, up to 24 when is fully translated.
+If available, the English translation of the contract is preferred. Otherwise, French and German becomes second and third choice respectively.
+When any of this translation is not present, the first available is picked.
+
+Field  |   Data type  | Description
+------------- | ------------- | -------------
+OTH_NOT  | String  | Indicate whether the notice follow a standard structure (then *OTH_NOT* = *NO*) or structure is open to allow the publication of any other notice which is not following a standard form, aka non-structured notice (then *OTH_NOT* = *YES*). Only when *OTH_NOT* = *NO*, the fields CONTRACTING_AUTHORITY, CONTRACT_OBJECT and AWARDS_OF_CONTRACT are extracted
+
+#### CONTRACTING_AUTHORITY section
+
+Field  |   Data type  | Description
+------------- | ------------- | -------------
+CONTRACTING_AUTHORITY  | String  | Name of Contracting Authority
+
+#### CONTRACT_OBJECT section
+Object of the contract.
+
+Field  |   Data type  | Description
+------------- | ------------- | -------------
+NUTS  | List(String)  | Region code(s) of the place of performance or delivery. A 2-5 digits code of the *Nomenclature of Territorial Units for Statistics*. Lookup values for first two digits: [ISO_COUNTRY.csv](Lookups/ISO_COUNTRY.csv)
+NUTS_EXTRA  | String  | Additional extracted comments on the place of performance or delivery
+CPV_MAIN  | String  | Main Product or service 8 digits code of the *Common Procurement Vocabulary*. Lookup values for first two digits: [CPV.csv](Lookups/CPV.csv)
+CONTRACT_COVERED_GPA  | String  | *YES* or *NO* if contract is covered by GPA (Government Procurement Agreement)
+CONCLUSION_FRAMEWORK_AGREEMENT  | String  | *YES* or *NO* if contract is part of a Framework Agreement
+CONTRACTS_DPS  | String  | *YES* or *NO* if contract is subject to a Dynamic Purchasing System
+CONTRACT_VALUE  | Contract Value  | Total value. Should correspond to the sum of individual contractor's contract values. See below
+
+#####  CONTRACT_VALUE sub-section
+
+Field  |   Data type  | Description
+------------- | ------------- | -------------
+
+#### AWARDS_OF_CONTRACT section
+List of awards.
+
+Each award can contain the following sub-sections:
+- CONTRACTOR: General Information about successful bidder
+- CONTRACT_VALUE: Contract value associated with contractor. Fields are same as mentioned above
+
+#####  CONTRACTOR sub-section
+
+Field  |   Data type  | Description
+------------- | ------------- | -------------
+OFFICIALNAME  | String  | Name of Contractor
+COUNTRY  | String  | Country of Contractor
+ADDRESS  | String  | Address (Street Name) of Contractor
+TOWN  | String  | Town of Contractor
+POSTAL_CODE  | String  | Postal Code of Contractor
 
 
-An example of scraped page as stored in MongoDB:
+
+
+
+An example of cleaned document:
 ```
 {
 
@@ -51,18 +130,23 @@ Python version: 3.6
 Database: MongoDB, local mode
 
 ### How to run the project locally
-Include instructions on how to run the project on a user's local machine. Be sure to reference the technologies they might have to download for the application to run.
+Example of how to convert a document
 
-1. Step 1
+```python
+file_path = '454322_2015.xml'  # Contract Award notice downloaded from tED website
 
-2. Step 2
-	* Substep (a)
-	* Substep (b)
-3. Step 3
+# Extract the raw data
+from extractor import extract
+raw = extract(file_path)
 
-	```
-	Your code here
-	```
+# Validate the raw data
+from validator import validate
+data = validate(raw)
+
+# Prune the data: remove empty fields
+from validator import prune
+prune(data)
+```
 
 ### Project Structure
 Repository structure:
@@ -84,10 +168,10 @@ Repository structure:
     └── mongo_import.py
 
 
- * ``Lookups``
- * ``extractor.py``
- * ``validator.py``
- * ``mongo_import.py``
+ * ``Lookups``: folder containing various lookup files
+ * ``extractor.py``: script to extract raw data from the contract award notices
+ * ``validator.py``: scripts to validate the raw data and prune the dictionary (i.e. remove the empty fileds)
+ * ``mongo_import.py``: script to upload the data in a MongoDB database
 
 ## Contributors
 
