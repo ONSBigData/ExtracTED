@@ -15,7 +15,7 @@ Documents are extracted as Python dictionaries which can be saved in a MongoDB d
 
 The image below show an example of document as shown on the TED website.
 
-![](2016-OJS253-466898-en.jpg)
+![Image](Images/2016-OJS253-466898-en.jpg)
 
 ## Example of extracted dictionary
 
