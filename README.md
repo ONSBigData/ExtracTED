@@ -19,7 +19,7 @@ The image below show an example of document as shown on the TED website.
 
 ## Example of extracted dictionary
 
-An example of cleaned document:
+An example of extracted data (from same document above):
 ```
 {
   'DOC_ID': '466898-2016',
@@ -74,7 +74,11 @@ An example of cleaned document:
 
 ```
 
+## Fields
+
 Fields and description of the extracted data
+
+### 1. DOC_ID section
 
 Field  |   Data type  | Description
 ------------- | ------------- | -------------
@@ -101,13 +105,13 @@ VALUES_LIST can be composed of the following fields:
 
 Field  |   Data type  | Description
 ------------- | ------------- | -------------
-GLOBAL_VALUE  | Value  | Value. Can be single or range value. Can have VAT percentage
-CONTRACTS_VALUE  | List(Value)  | List of Values. Each value can be single or range value. Can have VAT percentage
+GLOBAL_VALUE  | Value  | The total value of the tender. Should equal the sum of in CONTRACTS_VALUE List
+CONTRACTS_VALUE  | List(Value)  | Individual awards value. This happens when the contract is composed of multiple parts or lots.
 
-###### 2.1.1.1 VALUE
+###### Value Data Type
 Each value can be single or range value and can have VAT percentage
 
-When is single:
+* When is single:
 
 Field  |   Data type  | Description
 ------------- | ------------- | -------------
@@ -115,7 +119,7 @@ CURRENCY  | String  | Currency of the value
 VALUE  | Float  | Value
 VAT_PRCT  | Int  | Vat percentage
 
-When is range:
+* When is range:
 
 Field  |   Data type  | Description
 ------------- | ------------- | -------------
@@ -169,7 +173,7 @@ CPV_MAIN  | String  | Main Product or service 8 digits code of the *Common Procu
 CONTRACT_COVERED_GPA  | String  | *YES* or *NO* if contract is covered by GPA (Government Procurement Agreement)
 CONCLUSION_FRAMEWORK_AGREEMENT  | String  | *YES* or *NO* if contract is part of a Framework Agreement
 CONTRACTS_DPS  | String  | *YES* or *NO* if contract is subject to a Dynamic Purchasing System
-CONTRACT_VALUE  | Contract Value  | Total value. Should correspond to the sum of individual contractor's contract values. See below
+CONTRACT_VALUE  | Contract Value  | Total value. Should correspond to the sum of individual contractor's contract values. See [Section AWARDS_OF_CONTRACT](#3.4-AWARDS_OF_CONTRACT-section)
 
 ##### 3.3.1 CONTRACT_VALUE sub-section
 
@@ -177,14 +181,13 @@ Each contract value can be composed of the following fields:
 
 Field  |   Data type  | Description
 ------------- | ------------- | -------------
-COST  | Value  | Value. Can be single or range value. Can have VAT percentage
-ESTIMATE  | Value  | Value. Can be single or range value. Can have VAT percentage
-NUMBER_OF_YEARS  | Int  | Address (Street Name) of Contractor
-NUMBER_OF_MONTHS  | Int  | Town of Contractor
+COST  | Value  | The actual cost
+ESTIMATE  | Value  | An initial estimate of the cost
+NUMBER_OF_YEARS  | Int  | Number of year the contract last. Cost/Estimate might be given per year
+NUMBER_OF_MONTHS  | Int  | Number of month the contract last. Cost/Estimate might be given per month
 
-**Value Data Type:**
-
-Fields are same as mentioned above. See [Section 2.1.1.1](#2.1.1.1-VALUE)
+###### Value Data Type
+Fields are same as mentioned above. See [Section Value Data Type](#Value-Data-Type)
 
 #### 3.4 AWARDS_OF_CONTRACT section
 List of awards.
@@ -204,7 +207,7 @@ TOWN  | String  | Town of Contractor
 POSTAL_CODE  | String  | Postal Code of Contractor
 
 #####  3.4.2 CONTRACT_VALUE sub-section
-Fields are same as mentioned above. See [Section 3.3.1](#3.3.1-CONTRACT-VALUE-sub-section)
+Fields are same as mentioned above. See [Section 3.3.1 CONTRACT_VALUE](#3.3.1-CONTRACT-VALUE-sub-section)
 
 ## How do I use it?
 
