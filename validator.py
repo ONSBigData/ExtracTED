@@ -5,24 +5,9 @@ from extractor import extract
 from voluptuous import (Schema, Required, All, Optional, Length, Any,
                         MultipleInvalid, Match, Coerce)
 
-
-"""
-- DOC_ID
-- YEAR
-- MONTH
-- XML_FILE
-- CODED_DATA
-    - NOTICE_DATA
-    - CODIF_DATA
-- CONTRACT
-    - CONTRACTING_AUTHORITY
-    - OBJECT
-    - CONTRACT
-"""
-
 # Lookups
 iso_country = pd.read_csv('./Lookups/ISO_COUNTRY.csv', dtype='str',
-                      encoding='latin', keep_default_na=False)
+                          encoding='latin', keep_default_na=False)
 cpv = pd.read_csv('./Lookups/CPV.csv', dtype='str')
 ma = pd.read_csv('./Lookups/MA_MAIN_ACTIVITY.csv', dtype='str')
 td = pd.read_csv('./Lookups/TD_DOCUMENT_TYPE.csv', dtype='str')
@@ -39,12 +24,9 @@ currencies = ['EUR', 'BGN', 'CHF', 'USD', 'HRK', 'CZK', 'DKK', 'HUF', 'SEK',
               'LVL', 'GBP', 'MTL', 'CYP', 'EEK']
 
 
-def to_number(s):
-    try:
-        n = re.sub(r'\s', '', s.replace(',', '.').replace('%', ''))
-        return float(n)
-    except (ValueError, TypeError):
-        return []
+def number(s):
+    n = re.sub(r'\s', '', s.replace(',', '.').replace('%', ''))
+    return float(n)
 
 
 def concatenate(lst):
@@ -52,22 +34,22 @@ def concatenate(lst):
 
 
 def flat(lst):
-    if lst:
-        return lst[0]
-    else:
-        return lst
+    return lst[0]
 
 # Sub Schemas
 value = Schema({
     Optional('CURRENCY'): All(str, Any(*currencies)),
-    Optional(str): Any([], All(Coerce(flat), Coerce(to_number)))
+    Optional(str): Any([], All(Coerce(flat), Coerce(number)),
+                       All(Coerce(flat), str))  # Let it pass
 })
 
 
 contract_value = Schema({
     Optional(str): value,
-    Optional('NUMBER_OF_YEARS'): Any([], All(Coerce(flat), Coerce(int))),
-    Optional('NUMBER_OF_MONTHS'): Any([], All(Coerce(flat), Coerce(int)))
+    Optional('NUMBER_OF_YEARS'): Any([], All(Coerce(flat), Coerce(number)),
+                                     All(Coerce(flat), str)),  # Let it pass
+    Optional('NUMBER_OF_MONTHS'): Any([], All(Coerce(flat), Coerce(number)),
+                                      All(Coerce(flat), str))  # Let it pass
 })
 
 
@@ -88,27 +70,30 @@ schema = Schema({
     Required('CODED_DATA'): {
         Required('NOTICE_DATA'): {
             Required('NO_DOC_OJS'): All(Coerce(flat), str),
-            Optional('ORIGINAL_NUTS'): [All(str, match_nuts)],
-            Optional('ORIGINAL_CPV'): [All(str, match_cpv)],
+            Required('ORIGINAL_NUTS'): [All(str, match_nuts)],
+            Required('ORIGINAL_CPV'): [All(str, match_cpv)],
             Required('ISO_COUNTRY'): All(Coerce(flat), str, Length(2),
                                          Any(*iso_country.Code)),
-            Optional('IA_URL_GENERAL'): Any([], All(Coerce(flat), str)),
-            Optional('REF_NOTICE'): [str],
-            Optional('VALUES_LIST'): {
+            Required('IA_URL_GENERAL'): Any([], All(Coerce(flat), str)),
+            Required('REF_NOTICE'): [str],
+            Required('VALUES_LIST'): {
                 Optional('GLOBAL_VALUE'): value,
                 Optional('CONTRACTS_VALUE'): [value]
             }
         },
         Required('CODIF_DATA'): {
             Required('DS_DATE_DISPATCH'): All(Coerce(flat), str),
-            Required('TD_DOCUMENT_TYPE'): All(Coerce(flat), str, Any(*td.CODE)),
-            Required('AA_AUTHORITY_TYPE'): All(Coerce(flat), str, Any(*aa.CODE)),
-            Required('NC_CONTRACT_NATURE'): All(Coerce(flat), str, Any(*nc.CODE)),
+            Required('TD_DOCUMENT_TYPE'): All(Coerce(flat), str,
+                                              Any(*td.CODE)),
+            Required('AA_AUTHORITY_TYPE'): All(Coerce(flat), str,
+                                               Any(*aa.CODE)),
+            Required('NC_CONTRACT_NATURE'): All(Coerce(flat), str,
+                                                Any(*nc.CODE)),
             Required('PR_PROC'): All(Coerce(flat), str, Any(*pr.CODE)),
             Required('RP_REGULATION'): All(Coerce(flat), str, Any(*rp.CODE)),
             Required('TY_TYPE_BID'): All(Coerce(flat), str, Any(*ty.CODE)),
             Required('AC_AWARD_CRIT'): All(Coerce(flat), str, Any(*ac.CODE)),
-            Optional('MA_MAIN_ACTIVITIES'): [All(str, Any(*ma.CODE))]
+            Required('MA_MAIN_ACTIVITIES'): [All(str, Any(*ma.CODE))]
         }
     },
     Required('CONTRACT'): {
@@ -162,12 +147,10 @@ if __name__ == "__main__":
                 # Extract data from xml file
                 file_path = os.path.join(DIR, f)
                 data = extract(file_path)
-                data = schema(data)
-
-                prune(data)
-                collection.append(data)
-
                 try:
                     data = schema(data)
                 except MultipleInvalid as e:
                     print(str(e) + ' ---- file: ' + file_path)
+
+                prune(data)
+                collection.append(data)
